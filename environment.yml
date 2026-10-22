@@ -1,0 +1,19 @@
+name: heatwave
+channels:
+  - conda-forge
+  - nodefaults
+dependencies:
+  - spyder
+  - pandas
+  - geopandas
+  - matplotlib
+  - tqdm
+  - cartopy
+  - xarray
+  - netCDF4
+  - rioxarray
+  - numpy
+  - seaborn
+  - shapely
+  - openpyxl
+  - fastparquet
