@@ -167,7 +167,7 @@ def main():
     tic = time.time()
     
     #%% Trou de données pour Trappes, remplacement par Villacoublay
-    if False:
+    if True:
         station_1 = 'TRAPPES'
         stations_2 = ['ACHERES',
                       'LE PECQ',
