@@ -4,7 +4,7 @@ output/
 *.tex
 data/TRACC/doc/
 data/MF/doc
-data/MF/*.parquet
+*.parquet
 data/TRACC/Données climatiques prospectives*
 
 # Byte-compiled / optimized / DLL files
