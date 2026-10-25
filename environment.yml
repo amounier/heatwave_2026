@@ -17,3 +17,5 @@ dependencies:
   - shapely
   - openpyxl
   - fastparquet
+  - gdal
+  - libgdal-arrow-parquet
