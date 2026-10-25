@@ -63,7 +63,7 @@ def open_MF_data(force=False):
     station_dict = {'TRAPPES':'VILLACOUBLAY',
                     'NANCY':'NANCY-ESSEY',
                     'MACON':'MACON',
-                    'RENNES':'RENNES GALLET',
+                    'RENNES':'RENNES GALLET',#35238003
                     'TOURS':'TOURS',
                     'AGEN':'AGEN-LA GARENNE',
                     'CARPENTRAS':'CARPENTRAS',
@@ -88,6 +88,60 @@ def open_MF_data(force=False):
                 full_data = data
             else:
                 full_data = pd.concat([full_data,data])
+                
+        full_data.to_csv(os.path.join('data','MF',full_data_name))
+    
+    full_data = pd.read_csv(os.path.join('data','MF',full_data_name))
+    full_data['datetime'] = pd.to_datetime(full_data.datetime)
+    full_data = full_data.sort_values(by='datetime')
+    full_data = full_data.set_index(['datetime','STATION'])
+    return full_data
+
+
+def open_historical_MF_data(force=False):
+    full_data = None
+    full_data_name = 'historical_data.csv'
+    
+    station_dict = {'TRAPPES':'VILLACOUBLAY',
+                    'NANCY':'NANCY-ESSEY',
+                    'MACON':'MACON',
+                    'RENNES':'RENNES-ST JACQUES',# 35281001
+                    'TOURS':'TOURS',
+                    'AGEN':'AGEN-LA GARENNE',
+                    'CARPENTRAS':'CARPENTRAS',
+                    'MARIGNANE':'MARIGNANE'}
+    
+    if full_data_name not in os.listdir(os.path.join('data','MF')) or force:
+        france = France()
+        zcl_list = [Climat(e) for e in france.climats]
+        
+        for zcl in tqdm.tqdm(zcl_list):
+            
+            station_data = None
+            files = [f'HOR_departement_{City(zcl.center_city).departement.code}_periode_1990-1999.parquet',
+                     f'HOR_departement_{City(zcl.center_city).departement.code}_periode_2000-2009.parquet']
+            
+            for file_name in files:
+                data = pd.read_parquet(os.path.join('data','MF',file_name))
+                data = data[data.NOM_USUEL==station_dict.get(zcl.center_city_caps)][['AAAAMMJJHH','T','TD','U']]
+                data['STATION'] = [zcl.center_city_caps]*len(data)
+                data['AAAAMMJJHH'] = data.AAAAMMJJHH.map(str)
+                data['datetime'] = pd.to_datetime(data.AAAAMMJJHH,format='%Y%m%d%H')
+                # data = data[data.datetime.dt.year]
+                data = data[['datetime','STATION','T','U','TD']].set_index(['datetime','STATION'])
+                data = data.rename(columns={'T':'temperature','U':'humidite','TD' :'rosee'})
+                
+                if station_data is None:
+                    station_data = data
+                else:
+                    station_data = pd.concat([station_data,data])
+                    
+                station_data = station_data[station_data.index.get_level_values('datetime').year.isin(list(range(1996,2006)))]
+                
+            if full_data is None:
+                full_data = station_data
+            else:
+                full_data = pd.concat([full_data,station_data])
                 
         full_data.to_csv(os.path.join('data','MF',full_data_name))
     
@@ -154,8 +208,20 @@ def comparison_stations(station_1='TRAPPES', station_2='TOUSSUS LE NOBLE'):
 
 def get_temperature_data(force=False):
     TRACC_data = open_TRACC_file(force=force)
+    
     MF_data = open_MF_data(force=force)
+    
+    MF_data2 = open_historical_MF_data(force=force)
+    MF_data2 = MF_data2[MF_data2.index.get_level_values('datetime').year==2003].reset_index()
+    MF_data2 = MF_data2.rename(columns={'datetime':'old_date'})
+    MF_data2['datetime'] = pd.to_datetime({'year': 2026,
+                                           'month': MF_data2.old_date.dt.month,
+                                           'day': MF_data2.old_date.dt.day,
+                                           'hour':MF_data2.old_date.dt.hour})
+    MF_data2 = MF_data2[['datetime','STATION','temperature','humidite','rosee']].set_index(['datetime','STATION'])
+    
     data = TRACC_data.join(MF_data)
+    data = data.join(MF_data2, suffixes=('_2026','_2003'))
     return data
     
 
@@ -167,7 +233,7 @@ def main():
     tic = time.time()
     
     #%% Trou de données pour Trappes, remplacement par Villacoublay
-    if True:
+    if False:
         station_1 = 'TRAPPES'
         stations_2 = ['ACHERES',
                       'LE PECQ',
@@ -184,14 +250,63 @@ def main():
             rmse, mae = comparison_stations(station_1,station_2)
             print(f'\tRMSE = {rmse:.1f}°C\n\t MAE = {mae:.1f}°C\n')
         
+    #%% Calcul des températures seuils pour les calculs (sur les données d'observation)
+    if True:
+        france = France()
+        zcl_list = [Climat(c) for c in france.climats]
+        
+        data = open_historical_MF_data(force=False)
+        
+        # chroniques des temperatures
+        if False:
+            for zcl in tqdm.tqdm(zcl_list):
+                fig,ax = plt.subplots(figsize=(10,5),dpi=300)
+                
+                city = zcl.center_city_caps
+                obs = data[data.index.get_level_values('STATION')==city].reset_index().set_index('datetime')
+                
+                ax.plot(obs.index,
+                        obs['temperature'],
+                        label='Observations',color='tab:blue',lw=0.67)
+                
+                ax.legend()
+                
+                ax.set_title(f'{zcl.code} ({zcl.center_city})')
+                ax.set_ylabel('Hourly temperature (°C)')
+                
+                ax.set_xlim(pd.Timestamp("1996-01-01"), pd.Timestamp("2005-12-31"))
+                
+                ax.set_ylim([-20,44])
+                plt.subplots_adjust(hspace=0.05)
+                plt.savefig(os.path.join('output',f'temperature_historical_{zcl.code}.png'), bbox_inches='tight')
+                plt.show()
+                plt.close()
+                
+        # détermination des seuils
+        if True:
+            for zcl in zcl_list:
+                city = zcl.center_city_caps
+                obs = data[data.index.get_level_values('STATION')==city].reset_index().set_index('datetime')
+                daily_obs = obs.temperature.resample("D").agg(["max", "min","mean"]).dropna()
+                daily_obs['avg'] = ((daily_obs["max"] + daily_obs["min"]) / 2)
+                
+                S1 = daily_obs['avg'].quantile(0.995)
+                S2 = daily_obs['avg'].quantile(0.975)
+                S3 = daily_obs['avg'].quantile(0.95)
+                
+                # print(f'{zcl.code}\n\tS1 = {S1:.1f}°C\n\tS2 = {S2:.1f}°C\n\tS3 = {S3:.1f}°C')
+                print(f'{zcl.code}, {S1:.1f}, {S2:.1f}, {S3:.1f}')
+            
+    
+    
         
     #%% Graphes des temperatures annuelles TRACC (inutile finalement)
     if False:
         france = France()
         zcl_list = [Climat(c) for c in france.climats]
         
-        TRACC_data = open_TRACC_file(force=False)
-        MF_data = open_MF_data(force=False)
+        TRACC_data = open_TRACC_file(force=True)
+        MF_data = open_MF_data(force=True)
         
         warming_level = 2.
         
@@ -229,7 +344,7 @@ def main():
                     ax.set_xlim(pd.Timestamp("2026-01-01"), pd.Timestamp("2026-12-31"))
             
             plt.subplots_adjust(hspace=0.05)
-            plt.savefig(os.path.join('output',f'temperature_{zcl.code}.png'), bbox_inches='tight')
+            # plt.savefig(os.path.join('output',f'temperature_{zcl.code}.png'), bbox_inches='tight')
             plt.show()
             plt.close()
 

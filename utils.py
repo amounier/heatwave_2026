@@ -229,7 +229,24 @@ class Climat:
         self.center_city = self.get_city()
         self.center_city_caps = self.center_city.upper().replace('Â','A')
         
-        dict_heatwave_thresholds = {'H1a':[25.2,22.2,20.7]}
+        # valeurs MF
+        # dict_heatwave_thresholds = {'H1a':[25.2,22.2,20.7],
+        #                             'H1b':[25.2,22.2,20.7], # todo: update
+        #                             'H1c':[25.2,22.2,20.7], # todo: update
+        #                             'H2a':[25.2,22.2,20.7], # todo: update
+        #                             'H2b':[25.2,22.2,20.7], # todo: update
+        #                             'H2c':[25.2,22.2,20.7], # todo: update
+        #                             'H2d':[25.2,22.2,20.7], # todo: update
+        #                             'H3':[25.2,22.2,20.7]}  # todo: update
+        # valeurs perso
+        dict_heatwave_thresholds = {'H1a':[26.4, 23.5, 21.7],
+                                    'H1b':[25.2, 22.9, 21.6],
+                                    'H1c':[27.3, 24.6, 23.4], 
+                                    'H2a':[25.4, 22.8, 21.4],
+                                    'H2b':[26.2, 23.5, 22.1],
+                                    'H2c':[27.8, 25.2, 23.9],
+                                    'H2d':[28.1, 26.8, 25.8],
+                                    'H3':[28.8, 27.1, 26.2]}
         self.heatwave_thresholds = dict_heatwave_thresholds.get(self.code)
         
     def __str__(self):
@@ -387,12 +404,13 @@ def draw_climat_map(dict_zcl,figs_folder,cbar_min=0,cbar_max=1.,
 
 
 def get_warming_color(warming_level):
-    color_dict = {'obs':'tab:blue',
+    color_dict = {2003:'tab:green', 
+                  2026:'tab:blue',
                   2.0: (247,148,32),
                   2.7: (231,29,37),
                   4.0: (149,27,30),}
     for k in color_dict.keys():
-        if k == 'obs':
+        if k in [2003,2026]:
             continue
         v0,v1,v2 = color_dict.get(k)
         color_dict[k] = (v0/255,v1/255,v2/255)
@@ -418,15 +436,17 @@ def main():
                         add_city_points=[Climat(c).center_city for c in france.climats],lw=0.7)
         
     #%% Récupération des départements (format MF https://www.data.gouv.fr/datasets/donnees-climatologiques-de-base-horaires)
-    if False:
+    if True:
         france = France()
         cities_list = [City(Climat(e).center_city) for e in france.climats]
         
         for city in cities_list:
-            print(f'HOR_departement_{city.departement.code}_periode_2025-2026')
+            # print(f'HOR_departement_{city.departement.code}_periode_2025-2026')
+            # print(f'HOR_departement_{city.departement.code}_periode_1990-1999')
+            print(f'HOR_departement_{city.departement.code}_periode_2000-2009')
             
        
-        test = pd.read_parquet(os.path.join('data','MF','HOR_departement_13_periode_2025-2026.parquet'))
+        # test = pd.read_parquet(os.path.join('data','MF','HOR_departement_13_periode_2025-2026.parquet'))
 
     
     tac = time.time()
