@@ -14,211 +14,55 @@ import matplotlib.pyplot as plt
 import tqdm
 from matplotlib.dates import DateFormatter, MonthLocator
 
-from utils import France, Climat, City, get_warming_color
+from utils import France, Climat, get_warming_color
 from temperature import get_temperature_data
 
 
-def detect_heatwaves_TRACC(temperature, S1 , S2, S3):
+def detect_heatwaves_TRACC(temperature,S1,S2,S3):
     temperature = temperature.sort_index()
-    daily_temperature = temperature.resample("D").agg(["max", "min"]).dropna()
+    daily_temperature = temperature.resample("D").agg(["max","min"]).dropna()
     daily_temperature['mean'] = ((daily_temperature["max"] + daily_temperature["min"]) / 2)
     
-    heatwaves = []
+    start_end_heatwaves = []
     
-    doy = 0
-    while doy < len(daily_temperature):
-        if daily_temperature['mean'].values[doy] <= S1:
-            doy += 1
-            continue
-
-        start = doy
-        days_below_s2 = 0
-        j = doy + 1
-        end = None
-    
-        while True:
-            if j >= len(daily_temperature):
-                end = len(daily_temperature) - 1
-                break
-            if daily_temperature['mean'].values[j] < S3:
-                end = j - 1
-                break
-            if daily_temperature['mean'].values[j] < S2:
-                days_below_s2 += 1
-                if days_below_s2 > 2:
-                    end = j - 1 
-                    break
-            else:
-                days_below_s2 = 0
-            j += 1
-    
-        heatwaves.append({
-            "start": daily_temperature.index[start],
-            "end": daily_temperature.index[end],
-            "duration_days": end - start + 1,
-            "max_temperature": daily_temperature['max'].values[start:end + 1].max(),
-            "severity": (daily_temperature['mean']-S2).values[start:end + 1].sum()/(S1-S2),
-        })
-        doy = end + 1
-    
-    return pd.DataFrame(heatwaves, columns=["start", "end", "duration_days", "max_temperature", "severity"])
-
-
-def detect_heatwaves_MF(temperature, Smin, Smax):
-    temperature = temperature.sort_index()
-    daily_temperature = temperature.resample("D").agg(["max", "min"]).dropna()
-    daily_temperature['mean'] = ((daily_temperature["max"] + daily_temperature["min"]) / 2)
-    
-    heatwaves = []
-    
-    doy = 0
-    while doy < len(daily_temperature):
-        if daily_temperature['max'].values[doy] < Smax or daily_temperature['min'].values[doy] < Smin:
-            doy += 1
-            continue
-
-        start = doy
-        days_below_smax = 0
-        days_below_smin = 0
-        j = doy + 1
-        end = None
-    
-        while True:
-            if j >= len(daily_temperature):
-                end = len(daily_temperature) - 1
-                break
-            if daily_temperature['max'].values[j] < Smax:
-                days_below_smax += 1
-                if days_below_smax > 3:
-                    end = j - 1 
-                    break
-            if daily_temperature['min'].values[j] < Smin:
-                days_below_smin += 1
-                if days_below_smin > 3:
-                    end = j - 1 
-                    break
-            else:
-                days_below_smax = 0
-                days_below_smin = 0
-            j += 1
-    
-        heatwaves.append({
-            "start": daily_temperature.index[start],
-            "end": daily_temperature.index[end],
-            "duration_days": end - start + 1,
-            "max_temperature": daily_temperature['max'].values[start:end + 1].max(),
-            "severity": (daily_temperature['mean']-Smin).values[start:end + 1].sum()/(Smax-Smin),
-        })
-        doy = end + 1
-    
-    return pd.DataFrame(heatwaves, columns=["start", "end", "duration_days", "max_temperature", "severity"])
-
-
-def detect_heatwaves_humidex(data, Smin, Smax, threshold=30):
-    # https://en.wikipedia.org/wiki/Humidex
-    data = data.sort_index()
-    T = data[data.columns[0]]
-    R = data[data.columns[1]]
-    data['humidex'] = T + 0.5555 * (6.11*np.exp(5417.7530*(1/273.16 - 1/(R+273.15))) - 10)
-    data['heatwave'] = data.humidex>threshold
-    data = data.dropna()
-    
-    daily_temperature = T.resample("D").agg(["max", "min"]).dropna()
-    daily_temperature['mean'] = ((daily_temperature["max"] + daily_temperature["min"]) / 2)
-    daily_data = data['heatwave'].resample("D").agg(["any"]).dropna()
-    
-    heatwaves = []
-    
-    idx = 0
-    while idx < len(daily_data):
-        if not daily_data['any'].values[idx]:
-            idx += 1
+    heatwave_flag = False
+    for doy in range(len(daily_temperature)):
+        if not heatwave_flag and daily_temperature['mean'].values[doy] < S2:
             continue
         
-        start = idx
-        j = idx + 1
-        flag = True
-        while j < len(daily_data) and flag:
-            if not daily_data['any'].values[j]:
-                end = j - 1 
-                flag = False
-            else:
-                j += 1
+        if not heatwave_flag and daily_temperature['mean'].values[doy] >= S2:
+            heatwave_flag = True
+            nb_days_below_S2 = 0
+            start = doy
             
-        idx = end +1
-    
-        heatwaves.append({
-            "start": daily_data.index[start],
-            "end": daily_data.index[end],
-            "duration_days": end - start + 1,
-            "max_temperature": daily_temperature['max'].values[start:end + 1].max(),
-            "severity": (daily_temperature['mean']-Smin).values[start:end + 1].sum()/(Smax-Smin),
-        })
-    
-    res = pd.DataFrame(heatwaves, columns=["start", "end", "duration_days", "max_temperature", "severity"])
-    res = res[res.duration_days>1]
-    res = res[res.severity>1]
+        if heatwave_flag and daily_temperature['mean'].values[doy] >= S2:
+            nb_days_below_S2 = 0
         
-    return res
-
-
-def detect_heatwaves_heatindex(data, threshold=80):
-    # https://en.wikipedia.org/wiki/Heat_index
-    c1 = -42.379
-    c2 = 2.04901523
-    c3 = 10.14333127
-    c4 = -0.22475541
-    c5 = -6.83783e-3
-    c6 = -5.481717e-2
-    c7 = 1.22874e-3
-    c8 = 8.5282e-4
-    c9 = -1.99e-6
-    
-    data = data.sort_index()
-    
-    T = 9/5 * data.temperature + 32
-    R = data.humidite
-    
-    data['heatindex'] = c1 + c2*T + c3*R + c4*T*R + c5*T**2 + c6*R**2 + c7*T**2*R + c8*T*R**2 + c9*T**2*R**2
-    data['heatwave'] = data.heatindex>threshold
-    data = data.dropna()
-    
-    daily_temperature = data['temperature'].resample("D").agg(["max", "min"]).dropna()
-    daily_data = data['heatwave'].resample("D").agg(["any"]).dropna()
+        if heatwave_flag and daily_temperature['mean'].values[doy] < S3:
+            heatwave_flag = False
+            end = doy - 1 - nb_days_below_S2
+            start_end_heatwaves.append((start,end))
+        
+        if heatwave_flag and daily_temperature['mean'].values[doy] < S2:
+            nb_days_below_S2 += 1
+            if nb_days_below_S2 == 3:
+                heatwave_flag = False
+                end = doy - 3
+                start_end_heatwaves.append((start,end))
     
     heatwaves = []
-    
-    idx = 0
-    while idx < len(daily_data):
-        if not daily_data['any'].values[idx]:
-            idx += 1
-            continue
+    for start,end in start_end_heatwaves:
+        heatwaves.append({"start": daily_temperature.index[start],
+                          "end": daily_temperature.index[end],
+                          "duration_days": end - start + 1,
+                          "max_mean_temperature": daily_temperature['mean'].values[start:end + 1].max(),
+                          "max_temperature": daily_temperature['max'].values[start:end + 1].max(),
+                          "severity": (daily_temperature['mean']-S2).values[start:end + 1].sum()/ (S1 - S2)})
         
-        start = idx
-        j = idx + 1
-        flag = True
-        while j < len(daily_data) and flag:
-            if not daily_data['any'].values[j]:
-                end = j - 1 
-                flag = False
-            else:
-                j += 1
-            
-        idx = end +1
-    
-        heatwaves.append({
-            "start": daily_data.index[start],
-            "end": daily_data.index[end],
-            "duration_days": end - start + 1,
-            "max_temperature": daily_temperature['max'].values[start:end + 1].max(),
-            "severity": np.nan,
-        })
-    
-    res = pd.DataFrame(heatwaves, columns=["start", "end", "duration_days", "max_temperature", "severity"])
-    res = res[res.duration_days>1]
-        
-    return res
-
+    heatwaves = pd.DataFrame(heatwaves, columns=["start", "end", "duration_days","max_mean_temperature","max_temperature", "severity"])
+    heatwaves = heatwaves[heatwaves.max_mean_temperature>=S1]
+    heatwaves = heatwaves.reset_index()[["start", "end", "duration_days","max_temperature", "severity"]]
+    return heatwaves
 
 
 
@@ -228,9 +72,6 @@ def detect_heatwaves_heatindex(data, threshold=80):
 
 def main():
     tic = time.time()
-    
-    import pandas as pd
-
 
     #%% identification graphique
     if True:
@@ -257,18 +98,15 @@ def main():
                 min_ylim = data_zcl[[c for c in data_zcl.columns if c.startswith('temperature')]].min().min()
                 max_ylim = data_zcl[[c for c in data_zcl.columns if c.startswith('temperature')]].max().max()
                 
-                test = detect_heatwaves_TRACC(data_zcl[temperature_variable], *Climat(zcl).heatwave_thresholds)
-                # test = detect_heatwaves_MF(data_zcl[temperature_variable], Smin=City(Climat(zcl).center_city).departement.Smin, Smax=City(Climat(zcl).center_city).departement.Smax)
-                # test = detect_heatwaves_humidex(data_zcl[[temperature_variable,rosee_variable]], Smin=City(Climat(zcl).center_city).departement.Smin, Smax=City(Climat(zcl).center_city).departement.Smax)
-                # test = detect_heatwaves_heatindex(data_zcl[['temperature','humidite']])
+                heatwaves = detect_heatwaves_TRACC(data_zcl[temperature_variable], *Climat(zcl).heatwave_thresholds_SAFRAN)
                 
                 ax.plot(data_zcl.index,data_zcl[temperature_variable],color=color,lw=1,label=label)
                 
-                for start,end in zip(test.start,test.end):
+                for start,end in zip(heatwaves.start,heatwaves.end):
                     ax.fill_between([start,end],[max_ylim+2]*2,[min_ylim-2]*2,color=color,alpha=0.2)
                 
                 print(temperature_variable)
-                print(test)
+                print(heatwaves)
                 print()
                 
                 temperature_variable = 'temperature'
@@ -279,18 +117,15 @@ def main():
                     
                     data_zcl = data[data.index.get_level_values('STATION')==Climat(zcl).center_city_caps].reset_index().set_index('datetime')
                     
-                    test = detect_heatwaves_TRACC(data_zcl[temperature_variable], *Climat(zcl).heatwave_thresholds)
-                    # test = detect_heatwaves_MF(data_zcl[temperature_variable], Smin=City(Climat(zcl).center_city).departement.Smin, Smax=City(Climat(zcl).center_city).departement.Smax)
-                    # test = detect_heatwaves_humidex(data_zcl[[temperature_variable,rosee_variable]], Smin=City(Climat(zcl).center_city).departement.Smin, Smax=City(Climat(zcl).center_city).departement.Smax)
-                    # test = detect_heatwaves_heatindex(data_zcl[['temperature','humidite']])
+                    heatwaves = detect_heatwaves_TRACC(data_zcl[temperature_variable], *Climat(zcl).heatwave_thresholds_SAFRAN)
                     
                     ax.plot(data_zcl.index,data_zcl[temperature_variable],color='k',lw=0.5,zorder=0, label='5% heatwave')
                     
-                    for start,end in zip(test.start,test.end):
+                    for start,end in zip(heatwaves.start,heatwaves.end):
                         ax.fill_between([start,end],[max_ylim+2]*2,[min_ylim-2]*2,color='k',alpha=0.2,zorder=-1)
                         
                     print(temperature_variable)
-                    print(test)
+                    print(heatwaves)
                     print()
                 
                 ax.legend()
@@ -306,8 +141,7 @@ def main():
                     ax.set_ylim([min_ylim, max_ylim])
                 
             plt.subplots_adjust(hspace=0.05)
-            # plt.savefig(os.path.join('output',f'heatwaves_{zcl}_MF.png'), bbox_inches='tight')
-            plt.savefig(os.path.join('output',f'heatwaves_{zcl}_TRACC.png'), bbox_inches='tight')
+            plt.savefig(os.path.join('output',f'heatwaves_{zcl}.png'), bbox_inches='tight')
             plt.show()
             
     #%% Graphes de 2026 par rapport au niveaux de réchauffement
@@ -315,10 +149,16 @@ def main():
         data = get_temperature_data(force=False)
         france = France()
         
+        ref_heatwave_values = pd.read_csv(os.path.join('data','TRACC','caracteristiques_hw_stations_re2020.txt'))
+        ref_heatwave_values['warming'] = [float(e.split('_')[1].replace('fr','')) for e in ref_heatwave_values['Unnamed: 0']]
+        ref_heatwave_values['STATION'] = [e.split('_')[0] for e in ref_heatwave_values['Unnamed: 0']]
+        ref_heatwave_values = ref_heatwave_values[['STATION','warming','HW_dur','T2m_max','Hw_Sev']].set_index(['STATION','warming'])
+        print(ref_heatwave_values)
+        
         df = {'zcl':[],'warming':[],
-              'duration_day_mean':[],'duration_day_std':[],'duration_day_sum':[],
+              'duration_day_mean':[],'duration_day_std':[],'duration_day_sum':[],'duration_day_max':[],
               'max_temperature_max':[],'max_temperature_mean':[],'max_temperature_std':[],
-              'severity_mean':[],'severity_std':[],
+              'severity_mean':[],'severity_std':[],'severity_max':[],'severity_sum':[],
               'number_events':[]}
         
         for zcl in tqdm.tqdm(france.climats):
@@ -327,10 +167,9 @@ def main():
             for warming in [2003,2026,'2.0','2.0_heatwave','2.7','2.7_heatwave','4.0','4.0_heatwave']:
                 temperature_variable = f'temperature_{warming}'
                 
-                test = detect_heatwaves_TRACC(data_zcl[temperature_variable], *Climat(zcl).heatwave_thresholds)
-                # test = detect_heatwaves_MF(data_zcl[temperature_variable], Smin=City(Climat(zcl).center_city).departement.Smin, Smax=City(Climat(zcl).center_city).departement.Smax)
+                heatwaves = detect_heatwaves_TRACC(data_zcl[temperature_variable], *Climat(zcl).heatwave_thresholds_SAFRAN)
                 
-                if test.empty:
+                if heatwaves.empty:
                     duration_day_mean = np.nan
                     duration_day_std = np.nan
                     duration_day_sum = np.nan
@@ -341,36 +180,42 @@ def main():
                     severity_std = np.nan
                     number_events = 0 
                 else:
-                    test_mean = test.mean()
-                    test_std = test.std()
-                    test_max = test.max()
-                    test_sum = test[['duration_days','severity']].sum()
+                    test_mean = heatwaves.mean()
+                    test_std = heatwaves.std()
+                    test_max = heatwaves.max()
+                    test_sum = heatwaves[['duration_days','severity']].sum()
                     duration_day_mean = test_mean.loc['duration_days']
+                    duration_day_max = test_max.loc['duration_days']
                     duration_day_std = test_std.loc['duration_days']
                     duration_day_sum = test_sum.loc['duration_days']
                     max_temperature_max = test_max.loc['max_temperature']
                     max_temperature_mean = test_mean.loc['max_temperature']
                     max_temperature_std = test_std.loc['max_temperature']
+                    severity_max = test_max.loc['severity']
+                    severity_sum = test_sum.loc['severity']
                     severity_mean = test_mean.loc['severity']
                     severity_std = test_std.loc['severity']
-                    number_events = len(test)
+                    number_events = len(heatwaves)
                 
                 df["zcl"].append(zcl)
                 df['warming'].append(warming)
                 df['duration_day_mean'].append(duration_day_mean)
                 df['duration_day_std'].append(duration_day_std)
                 df['duration_day_sum'].append(duration_day_sum)
+                df['duration_day_max'].append(duration_day_max)
                 df['max_temperature_mean'].append(max_temperature_mean)
                 df['max_temperature_max'].append(max_temperature_max)
                 df['max_temperature_std'].append(max_temperature_std)
                 df['severity_mean'].append(severity_mean)
                 df['severity_std'].append(severity_std)
+                df['severity_max'].append(severity_max)
+                df['severity_sum'].append(severity_sum)
                 df['number_events'].append(number_events)
                 
         df = pd.DataFrame().from_dict(df)
-        df.to_csv(os.path.join('output','heatwaves_MF.csv'),index=False)
+        df.to_csv(os.path.join('output','heatwaves.csv'),index=False)
         
-        df = pd.read_csv(os.path.join('output','heatwaves_MF.csv'))
+        df = pd.read_csv(os.path.join('output','heatwaves.csv'))
         print(df)
         
         fig,axs = plt.subplots(1,3,figsize=(16,5),dpi=300,sharex=True)
@@ -378,26 +223,20 @@ def main():
         
         ylabel_dict = {'duration_day_mean':'Mean heatwave duration (days)',
                        'duration_day_sum':'Total heatwave duration (days)',
+                       'duration_day_max':'Max heatwave duration (days)',
                        'max_temperature_max':'Max heatwave temperature (°C)',
                        'max_temperature_mean':'Mean of max heatwave temperature (°C)',
-                       'severity_mean':'Mean heatwave severity (no unit)'}
+                       'severity_mean':'Mean heatwave severity (°C.°C$^{-1}$)',
+                       'severity_max':'Max severity (°C.°C$^{-1}$)',
+                       'severity_sum':'Total severity (°C.°C$^{-1}$)'}
         
-        for idx_var, var in enumerate(['duration_day_sum','max_temperature_mean','severity_mean']):
-            if var == 'max_temperature_max':
-                bottom = 33
-                top = 55
-            elif var == 'max_temperature_mean':
-                bottom = 33
-                top = 45
-            elif var == 'duration_day_mean':
-                bottom = 0
-                top = 25
-            elif var == 'duration_day_sum':
-                bottom = 0
-                top = 82
-            elif 'severity_mean':
-                bottom = 0
-                top = 75
+        ylim_dict = {e:(max(0,round(df[e].min())-2),round(df[e].max())+2) for e in ylabel_dict.keys()}
+        
+        var_list = ['duration_day_max','max_temperature_max','severity_max']
+        # var_list = ['duration_day_sum','max_temperature_mean','severity_mean']
+        
+        for idx_var, var in enumerate(var_list):
+            bottom,top = ylim_dict.get(var,(0,100))
                 
             ax = axs[idx_var]
             for idx,zcl in enumerate(france.climats):
@@ -407,8 +246,6 @@ def main():
                 else:
                     label_obs_2026 = ''
                     label_obs_2003 = ''
-                    
-                print(df, warming, zcl)
                     
                 ax.plot([idx-0.35,idx,idx+0.35],
                         [df[(df.warming=='2003')&(df.zcl==zcl)][var].values[0]]*3,lw=2,
@@ -432,14 +269,20 @@ def main():
                     
                     ax.plot([idx+(-1+idx_warming)*0.25],
                             [df[(df.warming==f'{warming}_heatwave')&(df.zcl==zcl)][var].values[0]],
-                            marker='^',color=get_warming_color(float(warming)),mec='w',ls='',ms=8)
+                            marker='^',color=get_warming_color(float(warming)),mec='w',ls='',ms=10)
+                    
+                    if var_list == ['duration_day_max','max_temperature_max','severity_max']:
+                        ref_values = ref_heatwave_values.loc[(Climat(zcl).center_city_caps,float(warming))].values[idx_var]
+                        ax.plot([idx+(-1+idx_warming)*0.25],
+                                [ref_values],
+                                marker='.',color='k',mec='w',ls='',ms=5,zorder=5)
                     
                     if idx%2 == 1:
                         ax.fill_between([idx-0.5,idx+0.5],[top]*2,[bottom]*2,color='tab:grey',alpha=0.1,zorder=-2)
                     
             ax.plot([-1],[0],color='k',marker='^',label='5% heatwave',mec='w',ls='',ms=8)
             ax.set_xlim([-0.5,len(france.climats)-0.5])
-            ax.set_ylabel(ylabel_dict.get(var))
+            ax.set_ylabel(ylabel_dict.get(var,var))
             ax.set_xticks(list(range(len(france.climats))),france.climats)
             ax.set_ylim(bottom=bottom, top=top)
             ax.yaxis.get_major_locator().set_params(integer=True)
@@ -447,8 +290,8 @@ def main():
             if idx_var == 2:
                 ax.legend(loc='upper left')
         
-        plt.subplots_adjust(wspace=0.15)
-        plt.savefig(os.path.join('output','heatwave_comparison.png'), bbox_inches='tight')
+        plt.subplots_adjust(wspace=0.17)
+        plt.savefig(os.path.join('output',f"heatwave_comparison_{'_'.join(var_list)}.png"), bbox_inches='tight')
         plt.show()
                 
     

@@ -6,6 +6,7 @@ data/TRACC/doc/
 data/MF/doc
 *.parquet
 data/TRACC/Données climatiques prospectives*
+data/TRACC/calc*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

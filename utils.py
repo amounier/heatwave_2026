@@ -18,6 +18,7 @@ from matplotlib.colors import LinearSegmentedColormap, Normalize
 from matplotlib.cm import ScalarMappable
 import numpy as np
 
+
 adm = pd.read_csv(os.path.join('data','INSEE','decoupage_administratif','communes-departement-region.csv'))
 adm = adm.dropna(subset=['code_departement'])
 adm['code_departement'] = ['0{}'.format(c) if len(c) == 1 else c for c in adm.code_departement]
@@ -46,132 +47,20 @@ list_dep_code = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11
                  '88', '89', '90', '91', '92', '93', '94', '95']
 
 
-def get_coordinates(city,max_attempt=10):
-    """
-    Récupération des coordonnées d'une ville via l'API OSM. 
-
-    Parameters
-    ----------
-    city : str
-        DESCRIPTION.
-
-    Returns
-    -------
-    longitude : float
-        DESCRIPTION.
-    latitude : float
-        DESCRIPTION.
-
-    """
-
-    coordinates_dict = {"Bourg-en-Bresse":(5.225032, 46.205119),
-                        "Laon":(3.620686, 49.564665),
-                        "Moulins":(3.33317, 46.566053),
-                        "Digne-les-Bains":(6.235143, 44.091814),
-                        "Gap":(6.082064, 44.561203),
-                        "Nice":(7.268391, 43.700936),
-                        "Privas":(4.598673, 44.735271),
-                        "Charleville-Mézières":(4.720694, 49.773571),
-                        "Foix":(1.605381, 42.9639),
-                        "Troyes":(4.074626, 48.297163),
-                        "Carcassonne":(2.349107, 43.213036),
-                        "Carpentras":(5.048768, 44.055404),
-                        "Rodez":(2.572849, 44.351141),
-                        "Marseille":(5.369953, 43.296174),
-                        "Caen":(-0.363561, 49.18134),
-                        "Aurillac":(2.44331, 44.928544),
-                        "Angoulême":(0.156195, 45.648451),
-                        "La Rochelle":(-1.151595, 46.159732),
-                        "Bourges":(2.399125, 47.081166),
-                        "Tulle":(1.77068, 45.267835),
-                        "Dijon":(5.04147, 47.321581),
-                        "Saint-Brieuc":(-2.760328, 48.514113),
-                        "Guéret":(1.871576, 46.168952),
-                        "Périgueux":(0.718441, 45.190936),
-                        "Besançon":(6.024362, 47.238022),
-                        "Valence":(-0.376335, 39.469707),
-                        "Évreux":(1.151016, 49.02689),
-                        "Chartres":(1.488143, 48.44386),
-                        "Quimper":(-4.102478, 47.996032),
-                        "Ajaccio":(8.737603, 41.926399),
-                        "Bastia":(9.450919, 42.699398),
-                        "Nîmes":(4.360069, 43.837425),
-                        "Toulouse":(1.444247, 43.604462),
-                        "Auch":(0.585051, 43.646356),
-                        "Bordeaux":(-0.580036, 44.841225),
-                        "Montpellier":(3.876734, 43.611242),
+def get_coordinates(city):
+    coordinates_dict = {"Carpentras":(5.048768, 44.055404),
                         "Rennes":(-1.68002, 48.111339),
-                        "Châteauroux":(1.677096, 46.820378),
                         "Tours":(0.688927, 47.390047),
-                        "Grenoble":(5.735782, 45.18756),
-                        "Lons-le-Saunier":(5.558997, 46.672704),
-                        "Mont-de-Marsan":(-0.500972, 43.891132),
-                        "Blois":(1.333764, 47.587686),
-                        "Saint-Étienne":(4.387306, 45.440147),
-                        "Le Puy-en-Velay":(3.885554, 45.045974),
-                        "Nantes":(-1.554136, 47.218637),
-                        "Orléans":(1.908607, 47.902734),
-                        "Cahors":(1.4365, 44.4495),
                         "Agen":(0.617611, 44.201583),
-                        "Mende":(3.499106, 44.518023),
-                        "Angers":(-0.551559, 47.473988),
-                        "Saint-Lô":(-1.090664, 49.1157),
-                        "Châlons-en-Champagne":(4.362885, 48.956622),
-                        "Chaumont":(5.139585, 48.111132),
-                        "Laval":(-0.773402, 48.070669),
                         "Nancy":(6.18341, 48.693722),
-                        "Bar-le-Duc":(5.162381, 48.771267),
-                        "Vannes":(-2.759908, 47.658677),
-                        "Metz":(6.176355, 49.119696),
-                        "Nevers":(3.15772, 46.98766),
-                        "Lille":(3.063528, 50.636565),
-                        "Beauvais":(2.082336, 49.4301),
-                        "Alençon":(0.091137, 48.431206),
-                        "Arras":(2.777221, 50.291048),
-                        "Clermont-Ferrand":(3.081943, 45.777455),
-                        "Pau":(-0.368567, 43.295755),
-                        "Tarbes":(0.078102, 43.232858),
-                        "Perpignan":(2.895312, 42.69853),
-                        "Strasbourg":(7.750713, 48.584614),
-                        "Colmar":(7.357964, 48.077752),
-                        "Lyon":(4.832011, 45.757814),
-                        "Vesoul":(6.154469, 47.61974),
                         "Mâcon":(4.832227, 46.303668),
-                        "Le Mans":(0.196785, 48.007385),
-                        "Chambéry":(5.920364, 45.566267),
-                        "Annecy":(6.128885, 45.899235),
-                        "Paris":(2.320041, 48.85889),
                         "Trappes":(1.998836, 48.776096),
-                        "Rouen":(1.093966, 49.440459),
-                        "Melun":(2.660817, 48.539927),
-                        "Versailles":(2.126689, 48.80354),
-                        "Niort":(-0.464606, 46.323923),
-                        "Amiens":(2.295695, 49.894171),
-                        "Albi":(2.147899, 43.927755),
-                        "Montauban":(1.354999, 44.017584),
-                        "Toulon":(5.930492, 43.125731),
-                        "Avignon":(4.805901, 43.949249),
-                        "La Roche-sur-Yon":(-1.42697, 46.670543),
-                        "Poitiers":(0.340196, 46.58026),
-                        "Limoges":(1.264485, 45.835424),
-                        "Épinal":(6.450364, 48.174768),
-                        "Auxerre":(3.570579, 47.796129),
-                        "Belfort":(6.862894, 47.63796),
-                        "Évry-Courcouronnes":(2.438182, 48.629966),
-                        "Nanterre":(2.207127, 48.892427),
-                        "Bobigny":(2.445223, 48.906387),
-                        "Créteil":(2.453073, 48.777149),
-                        "Cergy":(2.038874, 49.052753),
                         "Marignane":(5.214627, 43.416273)}
         
-    if city in coordinates_dict.keys():
-        longitude, latitude = coordinates_dict[city]
-        return longitude, latitude
-    else:
-       raise KeyError('Not defined. Availables cities are : {}'.format(', '.join(list(coordinates_dict.keys()))))
+    longitude, latitude = coordinates_dict[city]
     return longitude, latitude
 
-
+    
 class City:
     def __init__(self,name):
         self.name = name
@@ -229,25 +118,28 @@ class Climat:
         self.center_city = self.get_city()
         self.center_city_caps = self.center_city.upper().replace('Â','A')
         
-        # valeurs MF
-        # dict_heatwave_thresholds = {'H1a':[25.2,22.2,20.7],
-        #                             'H1b':[25.2,22.2,20.7], # todo: update
-        #                             'H1c':[25.2,22.2,20.7], # todo: update
-        #                             'H2a':[25.2,22.2,20.7], # todo: update
-        #                             'H2b':[25.2,22.2,20.7], # todo: update
-        #                             'H2c':[25.2,22.2,20.7], # todo: update
-        #                             'H2d':[25.2,22.2,20.7], # todo: update
-        #                             'H3':[25.2,22.2,20.7]}  # todo: update
-        # valeurs perso
-        dict_heatwave_thresholds = {'H1a':[26.4, 23.5, 21.7],
-                                    'H1b':[25.2, 22.9, 21.6],
-                                    'H1c':[27.3, 24.6, 23.4], 
-                                    'H2a':[25.4, 22.8, 21.4],
-                                    'H2b':[26.2, 23.5, 22.1],
-                                    'H2c':[27.8, 25.2, 23.9],
-                                    'H2d':[28.1, 26.8, 25.8],
-                                    'H3':[28.8, 27.1, 26.2]}
-        self.heatwave_thresholds = dict_heatwave_thresholds.get(self.code)
+        # valeurs SAFRAN
+        dict_heatwave_thresholds_SAFRAN = {'H1a':[25.2,22.2,20.7],
+                                           'H1b':[26.325,23.244,21.843],
+                                           'H1c':[27.428,24.842,23.487],
+                                           'H2a':[25.154,22.581,21.123],
+                                           'H2b':[27.071,24.191,22.584],
+                                           'H2c':[27.673,24.759,23.699],
+                                           'H2d':[27.726,26.120,25.243 ], 
+                                           'H3':[28.492,26.586,25.742]}
+        # valeurs OBS
+        dict_heatwave_thresholds_OBS = {'H1a':[26.4, 23.5, 21.7],
+                                        'H1b':[25.2, 22.9, 21.6],
+                                        'H1c':[27.3, 24.6, 23.4], 
+                                        'H2a':[25.4, 22.8, 21.4],
+                                        'H2b':[26.2, 23.5, 22.1],
+                                        'H2c':[27.8, 25.2, 23.9],
+                                        'H2d':[28.1, 26.8, 25.8],
+                                        'H3':[28.8, 27.1, 26.2]}
+        self.heatwave_thresholds_SAFRAN = dict_heatwave_thresholds_SAFRAN.get(self.code)
+        self.heatwave_thresholds_OBS = dict_heatwave_thresholds_OBS.get(self.code)
+        
+        
         
     def __str__(self):
         return self.code
@@ -285,7 +177,6 @@ def blank_national_map():
     ax.add_feature(cfeature.LAND, color='w',zorder=1)
     ax.add_feature(cfeature.COASTLINE,zorder=5)
     ax.add_feature(cfeature.BORDERS,zorder=3)
-    
     return fig,ax
 
 
@@ -424,7 +315,7 @@ def main():
     tic = time.time()
     
     #%% Carte des zones climatiques
-    if False:
+    if True:
         france = France()
         
         zcl_dict = {Climat(e):None for e in france.climats}
@@ -436,7 +327,7 @@ def main():
                         add_city_points=[Climat(c).center_city for c in france.climats],lw=0.7)
         
     #%% Récupération des départements (format MF https://www.data.gouv.fr/datasets/donnees-climatologiques-de-base-horaires)
-    if True:
+    if False:
         france = France()
         cities_list = [City(Climat(e).center_city) for e in france.climats]
         
@@ -448,6 +339,32 @@ def main():
        
         # test = pd.read_parquet(os.path.join('data','MF','HOR_departement_13_periode_2025-2026.parquet'))
 
+    #%% Formatage du tableau de seuils
+    if True:
+        dict_heatwave_thresholds_SAFRAN = {'H1a':[25.2,22.2,20.7],
+                                           'H1b':[26.325,23.244,21.843],
+                                           'H1c':[27.428,24.842,23.487],
+                                           'H2a':[25.154,22.581,21.123],
+                                           'H2b':[27.071,24.191,22.584],
+                                           'H2c':[27.673,24.759,23.699],
+                                           'H2d':[27.726,26.120,25.243 ], 
+                                           'H3':[28.492,26.586,25.742]}
+        
+        text = ""
+        text += '\\begin{tabular}{lccc|lccc}\n\t\\toprule\n'
+        text += '\t& $S_1$ (\\SI{}{\\celsius}) & $S_2$ (\\SI{}{\\celsius}) & $S_3$ (\\SI{}{\\celsius})&  & $S_1$ (\\SI{}{\\celsius}) & $S_2$ (\\SI{}{\\celsius}) & $S_3$ (\\SI{}{\\celsius}) \\\\\n\t\\midrule\n'
+        text += f"\tH1a & \\num{{{dict_heatwave_thresholds_SAFRAN.get('H1a')[0]}}} & \\num{{{dict_heatwave_thresholds_SAFRAN.get('H1a')[1]}}} & \\num{{{dict_heatwave_thresholds_SAFRAN.get('H1a')[2]}}}"
+        text += f"& H2b & \\num{{{dict_heatwave_thresholds_SAFRAN.get('H2b')[0]}}} & \\num{{{dict_heatwave_thresholds_SAFRAN.get('H2b')[1]}}} & \\num{{{dict_heatwave_thresholds_SAFRAN.get('H2b')[2]}}} \\\\\n"
+        text += f"\tH1b & \\num{{{dict_heatwave_thresholds_SAFRAN.get('H1b')[0]}}} & \\num{{{dict_heatwave_thresholds_SAFRAN.get('H1b')[1]}}} & \\num{{{dict_heatwave_thresholds_SAFRAN.get('H1b')[2]}}}"
+        text += f"& H2c & \\num{{{dict_heatwave_thresholds_SAFRAN.get('H2c')[0]}}} & \\num{{{dict_heatwave_thresholds_SAFRAN.get('H2c')[1]}}} & \\num{{{dict_heatwave_thresholds_SAFRAN.get('H2c')[2]}}} \\\\\n"
+        text += f"\tH1c & \\num{{{dict_heatwave_thresholds_SAFRAN.get('H1c')[0]}}} & \\num{{{dict_heatwave_thresholds_SAFRAN.get('H1c')[1]}}} & \\num{{{dict_heatwave_thresholds_SAFRAN.get('H1c')[2]}}}"
+        text += f"& H2d & \\num{{{dict_heatwave_thresholds_SAFRAN.get('H2d')[0]}}} & \\num{{{dict_heatwave_thresholds_SAFRAN.get('H2d')[1]}}} & \\num{{{dict_heatwave_thresholds_SAFRAN.get('H2d')[2]}}} \\\\\n"
+        text += f"\tH2a & \\num{{{dict_heatwave_thresholds_SAFRAN.get('H2a')[0]}}} & \\num{{{dict_heatwave_thresholds_SAFRAN.get('H2a')[1]}}} & \\num{{{dict_heatwave_thresholds_SAFRAN.get('H2a')[2]}}}"
+        text += f"& H3 & \\num{{{dict_heatwave_thresholds_SAFRAN.get('H3')[0]}}} & \\num{{{dict_heatwave_thresholds_SAFRAN.get('H3')[1]}}} & \\num{{{dict_heatwave_thresholds_SAFRAN.get('H3')[2]}}} \\\\\n"
+        text += '\t\\bottomrule\n\\end{tabular}'
+        print(text)
+        
+        
     
     tac = time.time()
     print("Done in {:.2f}s.".format(tac-tic))

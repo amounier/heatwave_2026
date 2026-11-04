@@ -161,6 +161,7 @@ def comparison_stations(station_1='TRAPPES', station_2='TOUSSUS LE NOBLE'):
     data_station_1 = data[data.NOM_USUEL==station_1]
     num_poste_station_1 = data_station_1.NUM_POSTE.values[0]
     data_station_1 = data_station_1[['AAAAMMJJHH','T']].rename(columns={'T':f'temperature_{station_1}'})
+    data_station_1['AAAAMMJJHH'] = data_station_1.AAAAMMJJHH.map(str)
     data_station_1['datetime'] = pd.to_datetime(data_station_1.AAAAMMJJHH,format='%Y%m%d%H')
     data_station_1 = data_station_1[data_station_1.datetime.dt.year==2026]
     data_station_1 = data_station_1.sort_values(by='datetime')
@@ -174,6 +175,7 @@ def comparison_stations(station_1='TRAPPES', station_2='TOUSSUS LE NOBLE'):
     data_station_2 = data[data.NOM_USUEL==station_2]
     num_poste_station_2 = data_station_2.NUM_POSTE.values[0]
     data_station_2 = data_station_2[['AAAAMMJJHH','T']].rename(columns={'T':f'temperature_{station_2}'})
+    data_station_2['AAAAMMJJHH'] = data_station_2.AAAAMMJJHH.map(str)
     data_station_2['datetime'] = pd.to_datetime(data_station_2.AAAAMMJJHH,format='%Y%m%d%H')
     data_station_2 = data_station_2[data_station_2.datetime.dt.year==2026]
     data_station_2 = data_station_2.sort_values(by='datetime')
@@ -233,7 +235,7 @@ def main():
     tic = time.time()
     
     #%% Trou de données pour Trappes, remplacement par Villacoublay
-    if False:
+    if True:
         station_1 = 'TRAPPES'
         stations_2 = ['ACHERES',
                       'LE PECQ',
@@ -251,7 +253,7 @@ def main():
             print(f'\tRMSE = {rmse:.1f}°C\n\t MAE = {mae:.1f}°C\n')
         
     #%% Calcul des températures seuils pour les calculs (sur les données d'observation)
-    if True:
+    if False:
         france = France()
         zcl_list = [Climat(c) for c in france.climats]
         
