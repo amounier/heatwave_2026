@@ -233,7 +233,7 @@ def main():
         ylim_dict = {e:(max(0,round(df[e].min())-2),round(df[e].max())+2) for e in ylabel_dict.keys()}
         
         var_list = ['duration_day_max','max_temperature_max','severity_max']
-        # var_list = ['duration_day_sum','max_temperature_mean','severity_mean']
+        var_list = ['duration_day_sum','max_temperature_mean','severity_mean']
         
         for idx_var, var in enumerate(var_list):
             bottom,top = ylim_dict.get(var,(0,100))
