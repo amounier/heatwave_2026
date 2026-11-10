@@ -315,7 +315,7 @@ def main():
     tic = time.time()
     
     #%% Carte des zones climatiques
-    if True:
+    if False:
         france = France()
         
         zcl_dict = {Climat(e):None for e in france.climats}
@@ -327,20 +327,20 @@ def main():
                         add_city_points=[Climat(c).center_city for c in france.climats],lw=0.7)
         
     #%% Récupération des départements (format MF https://www.data.gouv.fr/datasets/donnees-climatologiques-de-base-horaires)
-    if False:
+    if True:
         france = France()
         cities_list = [City(Climat(e).center_city) for e in france.climats]
         
         for city in cities_list:
-            # print(f'HOR_departement_{city.departement.code}_periode_2025-2026')
+            print(f'HOR_departement_{city.departement.code}_periode_2025-2026')
             # print(f'HOR_departement_{city.departement.code}_periode_1990-1999')
-            print(f'HOR_departement_{city.departement.code}_periode_2000-2009')
+            # print(f'HOR_departement_{city.departement.code}_periode_2000-2009')
             
        
         # test = pd.read_parquet(os.path.join('data','MF','HOR_departement_13_periode_2025-2026.parquet'))
 
     #%% Formatage du tableau de seuils
-    if True:
+    if False:
         dict_heatwave_thresholds_SAFRAN = {'H1a':[25.2,22.2,20.7],
                                            'H1b':[26.325,23.244,21.843],
                                            'H1c':[27.428,24.842,23.487],

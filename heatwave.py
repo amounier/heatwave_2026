@@ -61,7 +61,7 @@ def detect_heatwaves_TRACC(temperature,S1,S2,S3):
         
     heatwaves = pd.DataFrame(heatwaves, columns=["start", "end", "duration_days","max_mean_temperature","max_temperature", "severity"])
     heatwaves = heatwaves[heatwaves.max_mean_temperature>=S1]
-    heatwaves = heatwaves.reset_index()[["start", "end", "duration_days","max_temperature", "severity"]]
+    heatwaves = heatwaves.reset_index()[["start", "end", "duration_days","max_temperature", 'max_mean_temperature',"severity"]]
     return heatwaves
 
 
@@ -105,7 +105,7 @@ def main():
                 for start,end in zip(heatwaves.start,heatwaves.end):
                     ax.fill_between([start,end],[max_ylim+2]*2,[min_ylim-2]*2,color=color,alpha=0.2)
                 
-                print(temperature_variable)
+                print(zcl, temperature_variable)
                 print(heatwaves)
                 print()
                 
@@ -123,8 +123,8 @@ def main():
                     
                     for start,end in zip(heatwaves.start,heatwaves.end):
                         ax.fill_between([start,end],[max_ylim+2]*2,[min_ylim-2]*2,color='k',alpha=0.2,zorder=-1)
-                        
-                    print(temperature_variable)
+                    
+                    print(zcl,temperature_variable)
                     print(heatwaves)
                     print()
                 

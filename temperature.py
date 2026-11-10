@@ -170,7 +170,7 @@ def comparison_stations(station_1='TRAPPES', station_2='TOUSSUS LE NOBLE'):
     if not data_station_1[data_station_1[f'temperature_{station_1}'].isna()].empty:
         begin = data_station_1[data_station_1[f'temperature_{station_1}'].isna()].index[0]
         end = data_station_1[data_station_1[f'temperature_{station_1}'].isna()].index[-1]
-        print(f"Missing value for {station_1}: {begin.strftime('%d %B')} - {end.strftime('%d %B')}")
+        print(f"Missing value for {station_1}: {begin.strftime('%d %B (%H:%M)')} - {end.strftime('%d %B (%H:%M)')}")
         
     data_station_2 = data[data.NOM_USUEL==station_2]
     num_poste_station_2 = data_station_2.NUM_POSTE.values[0]
@@ -184,7 +184,7 @@ def comparison_stations(station_1='TRAPPES', station_2='TOUSSUS LE NOBLE'):
     if not data_station_2[data_station_2[f'temperature_{station_2}'].isna()].empty:
         begin = data_station_2[data_station_2[f'temperature_{station_2}'].isna()].index[0]
         end = data_station_2[data_station_2[f'temperature_{station_2}'].isna()].index[-1]
-        print(f"Missing value for {station_2}: {begin.strftime('%d %B')} - {end.strftime('%d %B')}")
+        print(f"Missing value for {station_2}: {begin.strftime('%d %B (%H:%M)')} - {end.strftime('%d %B (%H:%M)')}")
         
     data = data_station_1.join(data_station_2,how='outer')
     
